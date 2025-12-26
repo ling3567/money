@@ -157,12 +157,28 @@
         .btn-ocr { background-color: #9FA8DA; color: white; box-shadow: 0 4px 0 #7986CB; }
         #ocrInput { display: none; }
 
-        /* Dashboard */
-        .summary-dashboard { display: flex; gap: 10px; margin: 0 0 20px 0; }
-        .summary-card { flex: 1; padding: 15px 10px; border-radius: 15px; text-align: center; border: 2px solid transparent; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+        /* Dashboard (Modified for 4 cards) */
+        .summary-dashboard { 
+            display: flex; 
+            gap: 10px; 
+            margin: 0 0 20px 0; 
+            flex-wrap: wrap; /* 允許換行 */
+        }
+        .summary-card { 
+            flex: 1; 
+            min-width: 120px; /* 確保最小寬度，避免太擠 */
+            padding: 15px 10px; 
+            border-radius: 15px; 
+            text-align: center; 
+            border: 2px solid transparent; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02); 
+        }
         .card-income { background-color: #F1F8E9; color: var(--income-color); border-color: #DCEDC8; }
         .card-expense { background-color: #FFEBEE; color: var(--expense-color); border-color: #FFCDD2; }
         .card-balance { background-color: #E3F2FD; color: #1565C0; border-color: #BBDEFB; }
+        /* 新增：今日花費卡片樣式 */
+        .card-today { background-color: #FFF3E0; color: #E65100; border-color: #FFE0B2; }
+
         .summary-label { font-size: 0.85em; opacity: 0.8; margin-bottom: 5px; font-weight: bold; }
         .summary-value { font-size: 1.2em; font-weight: 800; letter-spacing: 0.5px; word-break: break-all; }
 
@@ -173,17 +189,30 @@
         .table-container { overflow-x: auto; border-radius: 15px 15px 0 0; min-height: 200px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); -webkit-overflow-scrolling: touch; }
         table { width: 100%; border-collapse: collapse; white-space: nowrap; background: white; }
         th { background-color: #FFDAC1; color: #6D4C41; padding: 15px; text-align: left; position: sticky; top: 0; z-index: 10; font-size: 1em; }
-        td { padding: 12px 15px; border-bottom: 2px solid #FFF8E1; color: #555; }
+        td { padding: 12px 15px; border-bottom: 2px solid #FFF8E1; color: #555; vertical-align: middle; }
         tr:last-child td { border-bottom: none; }
         .cost-text { font-weight: bold; font-size: 1.1em; }
         .cost-expense { color: var(--expense-color); }
         .cost-income { color: var(--income-color); }
 
-        .btn-delete { background-color: #FFEBEE; color: #C62828; padding: 6px 12px; font-size: 0.9em; box-shadow: none; flex: none; width: auto; border-radius: 10px; margin-left: 5px;}
+        /* 新增：操作按鈕欄位專用樣式 */
+        .action-cell {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px; /* 按鈕之間的間距 */
+        }
+
+        .btn-delete { background-color: #FFEBEE; color: #C62828; padding: 6px 12px; font-size: 0.9em; box-shadow: none; flex: none; width: auto; border-radius: 10px; }
         .btn-edit { background-color: #FFF9C4; color: #F57F17; padding: 6px 12px; font-size: 0.9em; box-shadow: none; flex: none; width: auto; border-radius: 10px; }
 
+        /* 修改：頁碼樣式 (由圓形改為圓角矩形) */
         .pagination { display: flex; justify-content: center; gap: 5px; padding: 15px; background: white; border-radius: 0 0 15px 15px; border-top: 1px solid #FFF8E1; }
-        .page-btn { width: 35px; height: 35px; border-radius: 50%; border: 1px solid #FFE0B2; background: white; color: #8D6E63; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; padding: 0; min-width: unset; box-shadow: none; }
+        .page-btn { 
+            min-width: 35px; height: 35px; 
+            border-radius: 8px; /* 這裡改為 8px 讓它變方 */
+            border: 1px solid #FFE0B2; background: white; color: #8D6E63; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; padding: 0 5px; box-shadow: none; 
+        }
         .page-btn:hover { background-color: #FFF8E1; }
         .page-btn.active { background-color: #FFB7B2; color: white; border-color: #FF8A80; }
         .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -236,6 +265,8 @@
             .control-group, .control-group-toggle { width: 100%; }
             .toggle-switch { width: 100%; justify-content: center; }
             .summary-label { font-size: 0.8em; } .summary-value { font-size: 1.1em; }
+            /* Mobile: Make summary cards 2x2 grid */
+            .summary-card { min-width: 40%; flex: 1 1 40%; }
             .receipt-row { grid-template-columns: 1fr 1fr 0.5fr; grid-template-rows: auto auto; gap: 8px; }
             .receipt-row input.item-name { grid-column: 1 / -1; } .receipt-row input.item-price { grid-column: 1 / 2; } .receipt-row select.item-cat { grid-column: 2 / 3; } .receipt-row button { grid-column: 3 / 4; padding: 5px; height: 100%; }
             .receipt-info-bar { flex-direction: column; gap: 10px; } .receipt-info-bar > div { width: 100%; }
@@ -260,6 +291,8 @@
     <!-- 頁面 1: 記帳輸入 -->
     <div id="view-input" class="view-section active">
         <div class="summary-dashboard">
+            <!-- 新增：今日花費卡片 -->
+            <div class="summary-card card-today"><div class="summary-label">今日花費</div><div class="summary-value" id="dashToday">$0</div></div>
             <div class="summary-card card-income"><div class="summary-label"><span id="dashLabel">本月</span>收入</div><div class="summary-value" id="dashIncome">$0</div></div>
             <div class="summary-card card-expense"><div class="summary-label"><span id="dashLabelExp">本月</span>支出</div><div class="summary-value" id="dashExpense">$0</div></div>
             <div class="summary-card card-balance"><div class="summary-label">結餘</div><div class="summary-value" id="dashBalance">$0</div></div>
@@ -369,7 +402,7 @@
     let API_URL = localStorage.getItem('myCuteAccountBook_API') || '';
     let transactions = [];
     window.currentListPage = 1;
-    const itemsPerPage = 10;
+    const itemsPerPage = 20; 
     let currentEditingId = null; 
 
     const expenseCategoriesHTML = `<optgroup label="🍔 食"><option value="食–早餐">食–早餐</option><option value="食–午餐">食–午餐</option><option value="食–晚餐">食–晚餐</option><option value="食–早午茶">食–早午茶</option><option value="食–點心">食–點心</option><option value="食–飲料">食–飲料</option><option value="食–食材" selected>食–食材</option></optgroup><optgroup label="👗 衣"><option value="衣–鞋襪/包包/衣服">衣–鞋襪/包包/衣服</option></optgroup><optgroup label="💇‍♀️ 美"><option value="美–美髮">美–美髮</option><option value="美–保養品">美–保養品</option></optgroup><optgroup label="🏠 住"><option value="住–手機費">住–手機費</option></optgroup><optgroup label="🚗 行"><option value="行–維修/停車">行–維修/停車</option><option value="行–加油">行–加油</option></optgroup><optgroup label="✏️ 育"><option value="育–文具">育–文具</option><option value="育–書/上課學習">育–書/上課學習</option></optgroup><optgroup label="🎡 樂"><option value="樂–住宿/門票/交通">樂–住宿/門票/交通</option></optgroup><optgroup label="👶 BABY"><option value="BABY-衣物">BABY-衣物</option><option value="BABY-用物">BABY-用物</option><option value="BABY-醫療">BABY-醫療</option></optgroup><optgroup label="🛒 其他"><option value="其他–日用雜貨" selected>其他–日用雜貨</option><option value="其他–日用雜貨(家用)">其他–日用雜貨(家用)</option><option value="其他–醫療">其他–醫療</option><option value="其他–紅包/禮物">其他–紅包/禮物</option></optgroup><optgroup label="🎫 優惠"><option value="優惠">優惠 (折扣/點數)</option></optgroup><optgroup label="💰 年度支出"><option value="年度–保險費">年度–保險費</option><option value="年度–稅金">年度–稅金</option><option value="年度–學費">年度–學費</option><option value="年度–保養品">年度–保養品</option><option value="年度–捐款">年度–捐款</option><option value="年度–旅遊">年度–旅遊</option><option value="年度–3C家電">年度–3C家電</option><option value="年度–其他">年度–其他</option></optgroup>`;
@@ -401,11 +434,11 @@
     async function fetchData() {
         showLoading('正在從雲端讀取資料...');
         try {
-            // 改回使用 GET 請求，這在 Redirect 場景下最穩定
+            // Use POST for reading too, to bypass some strict GET CORS checks in certain environments
+            // Passing action in URL as backup, and in body for main logic
             const response = await fetch(`${API_URL}?action=read&t=${Date.now()}`, { 
-                method: 'GET',
-                credentials: 'omit',
-                // 移除 mode: 'cors' 以外的特殊標頭，讓瀏覽器自動處理
+                method: 'GET', 
+                credentials: 'omit'
             });
             
             if (!response.ok) {
@@ -587,9 +620,9 @@
         btn.disabled = true;
 
         try {
-            // 測試使用 GET
+            // Use POST for test too
             const response = await fetch(`${url}?action=read&t=${Date.now()}`, { 
-                method: 'GET',
+                method: 'GET', 
                 credentials: 'omit'
             });
             if (response.ok) {
@@ -673,6 +706,20 @@
         if (filterMonth !== 'all') { filteredData = transactions.filter(item => item.date.startsWith(filterMonth)); }
 
         let mIncome = 0, mExpense = 0;
+        
+        // --- 新增：計算今日花費 ---
+        const today = new Date().toISOString().slice(0, 10); // 取得今日 YYYY-MM-DD
+        let todayTotal = 0;
+        
+        // 從全部資料中計算今日，確保不受過濾器影響
+        transactions.forEach(item => {
+            if (item.date === today && item.type === 'expense') {
+                todayTotal += parseInt(item.amount);
+            }
+        });
+        document.getElementById('dashToday').innerText = `$${todayTotal.toLocaleString()}`;
+        // -------------------------
+
         const label = filterMonth === 'all' ? "總累計" : filterMonth;
         document.getElementById('dashLabel').innerText = label;
         document.getElementById('dashLabelExp').innerText = label;
@@ -686,8 +733,9 @@
         pageData.forEach(item => {
             const tr = document.createElement('tr');
             const isInc = item.type === 'income';
+            // 修改 1: 在最後一個 td 加上 class="action-cell"
             tr.innerHTML = `<td>${item.date}</td><td style="color:${isInc?'#2E7D32':'#c62828'}">${isInc?'💰 收入':'💸 支出'}</td><td>${item.category}</td><td>${item.description}</td><td class="cost-text ${isInc?'cost-income':'cost-expense'}">${isInc?'+':'-'}$${parseInt(item.amount).toLocaleString()}</td><td>${item.method}</td><td style="color:#999;font-size:0.9em">${item.note}</td>
-            <td>
+            <td class="action-cell">
                 <button class="btn-edit" onclick="editItem('${item.id}')">✎</button>
                 <button class="btn-delete" onclick="deleteItem('${item.id}')">刪除</button>
             </td>`;
@@ -756,12 +804,38 @@
             try { foundDate = new Date(dateStr).toISOString().split('T')[0]; } catch(e){}
         }
         lines.forEach(line => {
-            let cleanLine = line.replace(/\s+/g, '');
-            if (cleanLine.match(/總計|合計|應付|卡號|電話|發票|日期/)) return;
-            let match = cleanLine.match(/([\u4e00-\u9fa5]+.*?)\D(\d+)$/);
-            if(match) {
-                let name = match[1].replace(/[A-Z]+$/, ''); let price = match[2];
-                if(name.length > 1) detectedRows.push({name, price});
+            // 修正重點 1: 正規化全形空白，但不移除所有空白
+            let cleanLine = line.replace(/[\uff00-\uffef]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xfee0)).trim();
+            
+            if (cleanLine.match(/總計|合計|應付|卡號|電話|發票|日期|統編|稅額/)) return;
+
+            // 修正重點 2: 使用保留空白的 Regex 邏輯
+            // 尋找最後一組數字當作價格
+            let priceMatch = cleanLine.match(/\s+(\d+)$/); 
+            if (!priceMatch) {
+                 // 如果真的沒有空白，嘗試抓取結尾數字
+                 priceMatch = cleanLine.match(/(\d+)$/);
+            }
+            
+            if (priceMatch) {
+                let price = priceMatch[1];
+                // 取得價格前的部分當作「可能包含數量的名稱」
+                let namePart = cleanLine.substring(0, priceMatch.index).trim();
+                
+                // 修正重點 3: 檢查名稱結尾是否還有數字（即「數量」）
+                // 如果名稱部分以 "數字" 結尾，且該數字看起來像數量 (例如 "1" 或 "2")
+                let qtyMatch = namePart.match(/\s+(\d+)$/);
+                if (qtyMatch) {
+                    // 移除這個數量數字，剩下的才是真正的品名
+                    namePart = namePart.substring(0, qtyMatch.index).trim();
+                }
+                
+                // 最後清理一下品名中的雜訊
+                namePart = namePart.replace(/[^\u4e00-\u9fa5a-zA-Z0-9\(\)\-]/g, ''); 
+
+                if (namePart.length > 1) { // 避免只剩一個字
+                     detectedRows.push({name: namePart, price: price});
+                }
             }
         });
         if(foundDate) document.getElementById('modalDate').value = foundDate;
