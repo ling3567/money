@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>我的溫馨記帳本 🐻 (雲端版)</title>
-    <link href="https://fonts.googleapis.com/css2?family=Varela+Round&family=Zen+Maru+Gothic:wght@400;700&display=swap" rel="stylesheet">
-    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+    <link href="[https://fonts.googleapis.com/css2?family=Varela+Round&family=Zen+Maru+Gothic:wght@400;700&display=swap](https://fonts.googleapis.com/css2?family=Varela+Round&family=Zen+Maru+Gothic:wght@400;700&display=swap)" rel="stylesheet">
+    <script src='[https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js](https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js)'></script>
     <style>
         :root {
             --bg-color: #FFF9F0;
@@ -877,8 +877,34 @@
     window.initStatsSelectors = function() {
         const yearSelect = document.getElementById('statsYearSelect');
         const currentYear = new Date().getFullYear();
-        yearSelect.innerHTML = `<option value="all">所有年份</option><option value="${currentYear}">${currentYear}</option>`;
-        yearSelect.value = currentYear;
+        
+        // 1. 建立年份集合，預設包含今年與 2025
+        const years = new Set([currentYear, 2025]);
+        
+        // 2. 從現有資料中抓取年份
+        transactions.forEach(t => {
+            // t.date 格式為 "YYYY-MM-DD"
+            const y = parseInt(t.date.substring(0, 4));
+            if (!isNaN(y)) years.add(y);
+        });
+
+        // 3. 排序 (由新到舊)
+        const sortedYears = Array.from(years).sort((a, b) => b - a);
+
+        // 4. 產生選項
+        let html = `<option value="all">所有年份</option>`;
+        sortedYears.forEach(y => {
+            html += `<option value="${y}">${y}年</option>`;
+        });
+        
+        yearSelect.innerHTML = html;
+        
+        // 5. 預設選取
+        // 如果目前篩選器已經有值(例如切換分頁回來)，保持原值；否則選今年
+        if (!yearSelect.value || yearSelect.value === '') {
+             yearSelect.value = currentYear;
+        }
+        
         updateMonthOptions();
     };
     window.updateMonthOptions = function() {
@@ -919,6 +945,41 @@
         if(box.checked) { lbl.classList.add('active'); lbl.querySelector('.toggle-icon').innerText = '🙈'; }
         else { lbl.classList.remove('active'); lbl.querySelector('.toggle-icon').innerText = '👁️'; }
     }
+    window.exportToCSV = function() {
+        if (transactions.length === 0) {
+            alert("目前沒有資料可匯出！");
+            return;
+        }
+
+        // CSV Header
+        let csvContent = "\uFEFF"; // BOM for Excel
+        csvContent += "日期,類型,分類,說明,金額,方式,備註\n";
+
+        transactions.forEach(function(item) {
+            let row = [
+                item.date,
+                item.type === 'income' ? '收入' : '支出',
+                item.category,
+                // Wrap description in quotes to handle commas
+                `"${String(item.description || '').replace(/"/g, '""')}"`, 
+                item.amount,
+                item.method,
+                `"${String(item.note || '').replace(/"/g, '""')}"`
+            ];
+            csvContent += row.join(",") + "\n";
+        });
+
+        // Create download link
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `記帳本匯出_${new Date().toISOString().slice(0,10)}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
 </script>
 
 </body>
