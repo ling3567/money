@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>我的溫馨記帳本 🐻 (雲端版)</title>
-    <link href="[https://fonts.googleapis.com/css2?family=Varela+Round&family=Zen+Maru+Gothic:wght@400;700&display=swap](https://fonts.googleapis.com/css2?family=Varela+Round&family=Zen+Maru+Gothic:wght@400;700&display=swap)" rel="stylesheet">
-    <script src='[https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js](https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js)'></script>
+    <link href="https://fonts.googleapis.com/css2?family=Varela+Round&family=Zen+Maru+Gothic:wght@400;700&display=swap" rel="stylesheet">
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
     <style>
         :root {
             --bg-color: #FFF9F0;
@@ -225,7 +225,14 @@
         .toggle-switch.active { background-color: #FFB7B2; color: white; border-color: #FF8A80; }
         .toggle-switch input { display: none; }
         .toggle-icon { font-size: 1.2em; }
-        .stats-card { background: white; border: 2px solid #FFF8E1; border-radius: 20px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        
+        /* Stats Card Clickable & Detail Styles */
+        .stats-card { 
+            background: white; border: 2px solid #FFF8E1; border-radius: 20px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); 
+            cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .stats-card:hover { transform: translateY(-3px); box-shadow: 0 6px 12px rgba(255, 204, 128, 0.2); border-color: #FFE0B2; }
+        
         .stats-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
         .category-name { font-weight: bold; width: 45%; font-size: 1em; }
         .bar-container { flex: 1; background-color: #F5F5F5; height: 12px; border-radius: 6px; margin: 0 10px; overflow: hidden; }
@@ -233,6 +240,13 @@
         .bar-fill.income-bar { background-color: #AED581; }
         .category-amount { width: 25%; text-align: right; font-weight: bold; font-size: 1em; }
         .empty-state { text-align: center; padding: 50px 20px; color: #BBB; font-size: 1.1em; }
+
+        /* Detail Table in Modal */
+        .detail-table { width: 100%; border-collapse: collapse; }
+        .detail-table th { background-color: #FFF8E1; color: #8D6E63; padding: 10px; font-size: 0.9em; text-align: left; position: sticky; top: 0; border-bottom: 2px solid #FFE0B2; }
+        .detail-table td { padding: 10px; border-bottom: 1px solid #f0f0f0; font-size: 0.95em; color: #555; vertical-align: top; }
+        .detail-date { color: #888; font-size: 0.85em; width: 85px; font-weight: bold; white-space: nowrap; } /* Widened for full date */
+        .detail-amt { font-weight: bold; text-align: right; color: #FF6F61; white-space: nowrap; }
 
         /* Modal Styles */
         .modal { display: none; position: fixed; z-index: 200; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(60, 40, 40, 0.6); backdrop-filter: blur(5px); }
@@ -382,6 +396,21 @@
         </div>
     </div>
 
+    <!-- Category Details Modal -->
+    <div id="categoryDetailsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalCategoryTitle">分類明細</h3>
+            </div>
+            <div class="modal-body" style="padding: 0;">
+                <div id="modalCategoryList"></div>
+            </div>
+            <div class="receipt-actions" style="margin-top: 15px;">
+                <button class="btn-cancel" onclick="closeCategoryModal()" style="width:100%">關閉</button>
+            </div>
+        </div>
+    </div>
+
     <div id="view-stats" class="view-section">
         <div class="stats-controls">
             <div class="control-group"><label>📅 年份</label><select id="statsYearSelect" onchange="updateMonthOptions()"></select></div>
@@ -405,7 +434,7 @@
     const itemsPerPage = 20; 
     let currentEditingId = null; 
 
-    const expenseCategoriesHTML = `<optgroup label="🍔 食"><option value="食–早餐">食–早餐</option><option value="食–午餐">食–午餐</option><option value="食–晚餐">食–晚餐</option><option value="食–早午茶">食–早午茶</option><option value="食–點心">食–點心</option><option value="食–飲料">食–飲料</option><option value="食–食材" selected>食–食材</option></optgroup><optgroup label="👗 衣"><option value="衣–鞋襪/包包/衣服">衣–鞋襪/包包/衣服</option></optgroup><optgroup label="💇‍♀️ 美"><option value="美–美髮">美–美髮</option><option value="美–保養品">美–保養品</option></optgroup><optgroup label="🏠 住"><option value="住–手機費">住–手機費</option></optgroup><optgroup label="🚗 行"><option value="行–維修/停車">行–維修/停車</option><option value="行–加油">行–加油</option></optgroup><optgroup label="✏️ 育"><option value="育–文具">育–文具</option><option value="育–書/上課學習">育–書/上課學習</option></optgroup><optgroup label="🎡 樂"><option value="樂–住宿/門票/交通">樂–住宿/門票/交通</option></optgroup><optgroup label="👶 BABY"><option value="BABY-衣物">BABY-衣物</option><option value="BABY-用物">BABY-用物</option><option value="BABY-醫療">BABY-醫療</option></optgroup><optgroup label="🛒 其他"><option value="其他–日用雜貨" selected>其他–日用雜貨</option><option value="其他–日用雜貨(家用)">其他–日用雜貨(家用)</option><option value="其他–醫療">其他–醫療</option><option value="其他–紅包/禮物">其他–紅包/禮物</option></optgroup><optgroup label="🎫 優惠"><option value="優惠">優惠 (折扣/點數)</option></optgroup><optgroup label="💰 年度支出"><option value="年度–保險費">年度–保險費</option><option value="年度–稅金">年度–稅金</option><option value="年度–學費">年度–學費</option><option value="年度–保養品">年度–保養品</option><option value="年度–捐款">年度–捐款</option><option value="年度–旅遊">年度–旅遊</option><option value="年度–3C家電">年度–3C家電</option><option value="年度–其他">年度–其他</option></optgroup>`;
+    const expenseCategoriesHTML = `<optgroup label="🍔 食"><option value="食–早餐">食–早餐</option><option value="食–午餐">食–午餐</option><option value="食–晚餐">食–晚餐</option><option value="食–早午茶">食–早午茶</option><option value="食–點心">食–點心</option><option value="食–飲料">食–飲料</option><option value="食–食材" selected>食–食材</option></optgroup><optgroup label="👗 衣"><option value="衣–鞋襪/包包/衣服">衣–鞋襪/包包/衣服</option></optgroup><optgroup label="💇‍♀️ 美"><option value="美–美髮">美–美髮</option><option value="美–保養品">美–保養品</option></optgroup><optgroup label="🏠 住"><option value="住–手機費">住–手機費</option></optgroup><optgroup label="🚗 行"><option value="行–維修/停車">行–維修/停車</option><option value="行–加油">行–加油</option></optgroup><optgroup label="✏️ 育"><option value="育–文具">育–文具</option><option value="育–書/上課學習">育–書/上課學習</option></optgroup><optgroup label="🎡 樂"><option value="樂–住宿/門票/交通">樂–住宿/門票/交通</option></optgroup><optgroup label="👶 BABY"><option value="BABY-衣物">BABY-衣物</option><option value="BABY-用物">BABY-用物</option><option value="BABY-醫療">BABY-醫療</option><option value="BABY-保母">BABY-保母</option></optgroup><optgroup label="🛒 其他"><option value="其他–日用雜貨" selected>其他–日用雜貨</option><option value="其他–日用雜貨(家用)">其他–日用雜貨(家用)</option><option value="其他–醫療">其他–醫療</option><option value="其他–紅包/禮物">其他–紅包/禮物</option></optgroup><optgroup label="🎫 優惠"><option value="優惠">優惠 (折扣/點數)</option></optgroup><optgroup label="💰 年度支出"><option value="年度–保險費">年度–保險費</option><option value="年度–稅金">年度–稅金</option><option value="年度–學費">年度–學費</option><option value="年度–保養品">年度–保養品</option><option value="年度–捐款">年度–捐款</option><option value="年度–旅遊">年度–旅遊</option><option value="年度–3C家電">年度–3C家電</option><option value="年度–其他">年度–其他</option></optgroup>`;
     const incomeCategoriesHTML = `<option value="收入–薪水">💰 薪水</option><option value="收入–獎金">🧧 獎金/紅包</option><option value="收入–兼職">💼 兼職/副業</option><option value="收入–投資">📈 投資/股利</option><option value="收入–其他">✨ 其他收入</option>`;
 
     // --- On Load ---
@@ -936,9 +965,84 @@
         document.getElementById('statsBalance').innerText = '$'+(totals.income - totals.expense).toLocaleString();
         Object.entries(totals.cats).sort((a,b)=>b[1]-a[1]).forEach(([name, amt]) => {
             const pct = Math.min(100, Math.round(amt / totals.expense * 100));
-            statsList.innerHTML += `<div class="stats-card"><div class="stats-row"><span class="category-name">${name}</span><span class="category-amount">$${amt.toLocaleString()}</span></div><div class="stats-row" style="margin-bottom:0"><div class="bar-container"><div class="bar-fill" style="width:${pct}%"></div></div><span style="font-size:0.8em;color:#aaa">${pct}%</span></div></div>`;
+            
+            // Modified: Add onclick to show detail modal
+            statsList.innerHTML += `
+            <div class="stats-card" onclick="showCategoryDetails('${name}')">
+                <div class="stats-row">
+                    <span class="category-name">${name}</span>
+                    <span class="category-amount">$${amt.toLocaleString()}</span>
+                </div>
+                <div class="stats-row" style="margin-bottom:0">
+                    <div class="bar-container">
+                        <div class="bar-fill" style="width:${pct}%"></div>
+                    </div>
+                    <span style="font-size:0.8em;color:#aaa">${pct}%</span>
+                </div>
+            </div>`;
         });
     }
+    
+    // New function: Show Category Details Modal
+    window.showCategoryDetails = function(category) {
+        const selectedYear = document.getElementById('statsYearSelect').value;
+        const selectedMonth = document.getElementById('statsMonthSelect').value;
+        const excludeLarge = document.getElementById('excludeLarge').checked;
+
+        // Re-filter transactions for the selected category based on current filters
+        const filteredData = transactions.filter(t => {
+            const y = t.date.substring(0, 4);
+            const m = t.date.substring(5, 7);
+            
+            if (excludeLarge && t.category.startsWith('年度')) return false;
+            if (selectedYear !== 'all' && y !== selectedYear) return false;
+            if (selectedMonth !== 'all' && m !== selectedMonth) return false;
+            
+            return t.category === category;
+        });
+
+        // Sort by date (newest first)
+        filteredData.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        // Update Modal Content
+        const listDiv = document.getElementById('modalCategoryList');
+        const title = document.getElementById('modalCategoryTitle');
+        title.innerText = `🔍 ${category} - 明細`;
+        
+        if (filteredData.length === 0) {
+            listDiv.innerHTML = '<div class="empty-state">無資料</div>';
+        } else {
+            // Update table headers to include Note column
+            let html = '<table class="detail-table"><thead><tr><th>日期</th><th>說明</th><th>備註</th><th style="text-align:right">金額</th></tr></thead><tbody>';
+            let total = 0;
+            
+            filteredData.forEach(item => {
+                total += parseInt(item.amount);
+                // Use full date string YYYY-MM-DD
+                const dateDisplay = item.date;
+                html += `
+                    <tr>
+                        <td class="detail-date">${dateDisplay}</td>
+                        <td>${item.description}</td>
+                        <td style="color:#888; font-size:0.9em;">${item.note || ''}</td>
+                        <td class="detail-amt">$${parseInt(item.amount).toLocaleString()}</td>
+                    </tr>
+                `;
+            });
+            html += '</tbody></table>';
+            html += `<div style="padding:15px; text-align:right; font-weight:bold; font-size:1.1em; color:#E65100; border-top:2px dashed #FFE0B2;">總計: $${total.toLocaleString()}</div>`;
+            listDiv.innerHTML = html;
+        }
+
+        // Show Modal
+        document.getElementById('categoryDetailsModal').style.display = 'block';
+    }
+
+    // Close Category Modal
+    window.closeCategoryModal = function() {
+        document.getElementById('categoryDetailsModal').style.display = 'none';
+    }
+
     window.toggleExcludeStyle = () => {
         const box = document.getElementById('excludeLarge');
         const lbl = document.getElementById('excludeLabel');
