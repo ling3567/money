@@ -431,7 +431,8 @@
     let API_URL = localStorage.getItem('myCuteAccountBook_API') || '';
     let transactions = [];
     window.currentListPage = 1;
-    const itemsPerPage = 20; 
+    // 修改 1: 每頁顯示 50 筆
+    const itemsPerPage = 50; 
     let currentEditingId = null; 
 
     const expenseCategoriesHTML = `<optgroup label="🍔 食"><option value="食–早餐">食–早餐</option><option value="食–午餐">食–午餐</option><option value="食–晚餐">食–晚餐</option><option value="食–早午茶">食–早午茶</option><option value="食–點心">食–點心</option><option value="食–飲料">食–飲料</option><option value="食–食材" selected>食–食材</option></optgroup><optgroup label="👗 衣"><option value="衣–鞋襪/包包/衣服">衣–鞋襪/包包/衣服</option></optgroup><optgroup label="💇‍♀️ 美"><option value="美–美髮">美–美髮</option><option value="美–保養品">美–保養品</option></optgroup><optgroup label="🏠 住"><option value="住–手機費">住–手機費</option></optgroup><optgroup label="🚗 行"><option value="行–維修/停車">行–維修/停車</option><option value="行–加油">行–加油</option></optgroup><optgroup label="✏️ 育"><option value="育–文具">育–文具</option><option value="育–書/上課學習">育–書/上課學習</option></optgroup><optgroup label="🎡 樂"><option value="樂–住宿/門票/交通">樂–住宿/門票/交通</option></optgroup><optgroup label="👶 BABY"><option value="BABY-衣物">BABY-衣物</option><option value="BABY-用物">BABY-用物</option><option value="BABY-醫療">BABY-醫療</option><option value="BABY-保母">BABY-保母</option></optgroup><optgroup label="🛒 其他"><option value="其他–日用雜貨" selected>其他–日用雜貨</option><option value="其他–日用雜貨(家用)">其他–日用雜貨(家用)</option><option value="其他–醫療">其他–醫療</option><option value="其他–紅包/禮物">其他–紅包/禮物</option></optgroup><optgroup label="🎫 優惠"><option value="優惠">優惠 (折扣/點數)</option></optgroup><optgroup label="💰 年度支出"><option value="年度–保險費">年度–保險費</option><option value="年度–稅金">年度–稅金</option><option value="年度–學費">年度–學費</option><option value="年度–保養品">年度–保養品</option><option value="年度–捐款">年度–捐款</option><option value="年度–旅遊">年度–旅遊</option><option value="年度–3C家電">年度–3C家電</option><option value="年度–其他">年度–其他</option></optgroup>`;
