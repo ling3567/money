@@ -157,7 +157,7 @@
         .btn-ocr { background-color: #9FA8DA; color: white; box-shadow: 0 4px 0 #7986CB; }
         #ocrInput { display: none; }
 
-        /* Dashboard (Modified for 4 cards) */
+        /* Dashboard */
         .summary-dashboard { 
             display: flex; 
             gap: 10px; 
@@ -246,7 +246,7 @@
         .detail-table th { background-color: #FFF8E1; color: #8D6E63; padding: 10px; font-size: 0.9em; text-align: left; position: sticky; top: 0; border-bottom: 2px solid #FFE0B2; }
         .detail-table td { padding: 10px; border-bottom: 1px solid #f0f0f0; font-size: 0.95em; color: #555; vertical-align: top; }
         .detail-date { color: #888; font-size: 0.85em; width: 85px; font-weight: bold; white-space: nowrap; } /* Widened for full date */
-        .detail-amt { font-weight: bold; text-align: right; color: #FF6F61; white-space: nowrap; }
+        .detail-amt { font-weight: bold; text-align: right; white-space: nowrap; }
 
         /* Modal Styles */
         .modal { display: none; position: fixed; z-index: 200; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(60, 40, 40, 0.6); backdrop-filter: blur(5px); }
@@ -431,7 +431,6 @@
     let API_URL = localStorage.getItem('myCuteAccountBook_API') || '';
     let transactions = [];
     window.currentListPage = 1;
-    // 修改 1: 每頁顯示 50 筆
     const itemsPerPage = 50; 
     let currentEditingId = null; 
 
@@ -948,6 +947,7 @@
         const selectedMonth = document.getElementById('statsMonthSelect').value;
         const excludeLarge = document.getElementById('excludeLarge').checked;
         const statsList = document.getElementById('statsList'); statsList.innerHTML = '';
+        
         let filtered = transactions.filter(t => {
             const y = t.date.substring(0, 4), m = t.date.substring(5, 7);
             if(excludeLarge && t.category.startsWith('年度')) return false;
@@ -955,33 +955,70 @@
             if(selectedMonth !== 'all' && m !== selectedMonth) return false;
             return true;
         });
-        if(filtered.length === 0) { statsList.innerHTML = '<div class="empty-state">無資料</div>'; return; }
-        let totals = { income: 0, expense: 0, cats: {} };
+
+        if(filtered.length === 0) { 
+            statsList.innerHTML = '<div class="empty-state">無資料</div>'; 
+            return; 
+        }
+
+        // 修改：分離收入與支出的分類統計
+        let totals = { income: 0, expense: 0, incomeCats: {}, expenseCats: {} };
         filtered.forEach(t => {
-            if(t.type === 'income') totals.income += parseInt(t.amount);
-            else { totals.expense += parseInt(t.amount); totals.cats[t.category] = (totals.cats[t.category] || 0) + parseInt(t.amount); }
+            if(t.type === 'income') {
+                totals.income += parseInt(t.amount);
+                totals.incomeCats[t.category] = (totals.incomeCats[t.category] || 0) + parseInt(t.amount);
+            } else {
+                totals.expense += parseInt(t.amount);
+                totals.expenseCats[t.category] = (totals.expenseCats[t.category] || 0) + parseInt(t.amount);
+            }
         });
+
+        // 儀表板更新
         document.getElementById('statsTotalIncome').innerText = '$'+totals.income.toLocaleString();
         document.getElementById('statsTotalExpense').innerText = '$'+totals.expense.toLocaleString();
         document.getElementById('statsBalance').innerText = '$'+(totals.income - totals.expense).toLocaleString();
-        Object.entries(totals.cats).sort((a,b)=>b[1]-a[1]).forEach(([name, amt]) => {
-            const pct = Math.min(100, Math.round(amt / totals.expense * 100));
-            
-            // Modified: Add onclick to show detail modal
-            statsList.innerHTML += `
-            <div class="stats-card" onclick="showCategoryDetails('${name}')">
-                <div class="stats-row">
-                    <span class="category-name">${name}</span>
-                    <span class="category-amount">$${amt.toLocaleString()}</span>
-                </div>
-                <div class="stats-row" style="margin-bottom:0">
-                    <div class="bar-container">
-                        <div class="bar-fill" style="width:${pct}%"></div>
+
+        // 繪製支出分析區塊
+        if (Object.keys(totals.expenseCats).length > 0) {
+            statsList.innerHTML += '<h3 style="color: #c62828; padding: 10px 5px 5px; margin: 10px 0; border-bottom: 2px solid #FFCDD2;">📉 支出分析</h3>';
+            Object.entries(totals.expenseCats).sort((a,b)=>b[1]-a[1]).forEach(([name, amt]) => {
+                const pct = totals.expense === 0 ? 0 : Math.min(100, Math.round(amt / totals.expense * 100));
+                statsList.innerHTML += `
+                <div class="stats-card" onclick="showCategoryDetails('${name}')">
+                    <div class="stats-row">
+                        <span class="category-name">${name}</span>
+                        <span class="category-amount">$${amt.toLocaleString()}</span>
                     </div>
-                    <span style="font-size:0.8em;color:#aaa">${pct}%</span>
-                </div>
-            </div>`;
-        });
+                    <div class="stats-row" style="margin-bottom:0">
+                        <div class="bar-container">
+                            <div class="bar-fill" style="width:${pct}%"></div>
+                        </div>
+                        <span style="font-size:0.8em;color:#aaa">${pct}%</span>
+                    </div>
+                </div>`;
+            });
+        }
+
+        // 繪製收入分析區塊
+        if (Object.keys(totals.incomeCats).length > 0) {
+            statsList.innerHTML += '<h3 style="color: #2E7D32; padding: 10px 5px 5px; margin: 20px 0 10px; border-bottom: 2px solid #C8E6C9;">📈 收入分析</h3>';
+            Object.entries(totals.incomeCats).sort((a,b)=>b[1]-a[1]).forEach(([name, amt]) => {
+                const pct = totals.income === 0 ? 0 : Math.min(100, Math.round(amt / totals.income * 100));
+                statsList.innerHTML += `
+                <div class="stats-card" onclick="showCategoryDetails('${name}')">
+                    <div class="stats-row">
+                        <span class="category-name">${name}</span>
+                        <span class="category-amount" style="color: #2E7D32;">+$${amt.toLocaleString()}</span>
+                    </div>
+                    <div class="stats-row" style="margin-bottom:0">
+                        <div class="bar-container">
+                            <div class="bar-fill income-bar" style="width:${pct}%"></div>
+                        </div>
+                        <span style="font-size:0.8em;color:#aaa">${pct}%</span>
+                    </div>
+                </div>`;
+            });
+        }
     }
     
     // New function: Show Category Details Modal
@@ -1018,15 +1055,19 @@
             let total = 0;
             
             filteredData.forEach(item => {
+                const isIncome = item.type === 'income';
                 total += parseInt(item.amount);
                 // Use full date string YYYY-MM-DD
                 const dateDisplay = item.date;
+                const sign = isIncome ? '+' : '';
+                const color = isIncome ? '#2E7D32' : '#FF6F61';
+
                 html += `
                     <tr>
                         <td class="detail-date">${dateDisplay}</td>
                         <td>${item.description}</td>
                         <td style="color:#888; font-size:0.9em;">${item.note || ''}</td>
-                        <td class="detail-amt">$${parseInt(item.amount).toLocaleString()}</td>
+                        <td class="detail-amt" style="color:${color};">${sign}$${parseInt(item.amount).toLocaleString()}</td>
                     </tr>
                 `;
             });
