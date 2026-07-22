@@ -366,16 +366,19 @@
 
     <!-- Settings Modal -->
     <div id="settingsModal" class="modal">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header"><h2>⚙️ 連線設定</h2><p>請確認您的 Google Apps Script 網址</p></div>
+        <div class="modal-content" style="max-width: 550px;">
+            <div class="modal-header"><h2>⚙️ 連線設定</h2><p>雙引擎連線設定 (讀寫分離更穩定)</p></div>
             <div class="modal-body">
+                <label style="font-size: 0.9em; color: #8D6E63; margin-bottom: 5px; display: block;">1. 寫入用：Apps Script 網址 (必填)</label>
                 <input type="text" id="apiUrlInput" class="settings-input" placeholder="請貼上您的 Web App URL (結尾通常是 /exec)" />
-                <p style="font-size: 0.9em; color: #888; line-height: 1.6;">
+                
+                <label style="font-size: 0.9em; color: #8D6E63; margin-bottom: 5px; display: block; margin-top: 10px;">2. 加速讀取用：Google Sheet 試算表網址 (選填，極速讀取)</label>
+                <input type="text" id="sheetUrlInput" class="settings-input" placeholder="請貼上試算表的完整網址 (https://docs.google.com/spreadsheets/d/...)" />
+                
+                <p style="font-size: 0.9em; color: #888; line-height: 1.6; background: #FAFAFA; padding: 10px; border-radius: 10px; margin-top: 15px;">
                     <strong>⚠️ 設定檢查清單：</strong><br>
-                    1. 網址必須以 <code>/exec</code> 結尾。<br>
-                    2. 部署時「誰可以存取」務必選 <strong>「任何人 (Anyone)」</strong>。<br>
-                    3. 請避免使用「無痕模式」或阻擋第三方 Cookie 的瀏覽器，這可能會影響 Google 驗證。<br>
-                    4. 每次修改 Apps Script 後，記得按「新版本」部署。
+                    1. <strong>讀取加速：</strong>若填寫了試算表網址，請務必將試算表右上角的「共用」設為<strong>「知道連結的任何人皆可檢視」</strong>，否則極速讀取會失敗。<br>
+                    2. <strong>寫入權限：</strong>Apps Script 部署時，「誰可以存取」務必選<strong>「任何人 (Anyone)」</strong>。
                 </p>
             </div>
             <div class="receipt-actions">
@@ -429,6 +432,7 @@
 <script>
     // --- Config & Init ---
     let API_URL = localStorage.getItem('myCuteAccountBook_API') || '';
+    let SHEET_URL = localStorage.getItem('myCuteAccountBook_SheetUrl') || '';
     let transactions = [];
     window.currentListPage = 1;
     const itemsPerPage = 50; 
@@ -460,34 +464,105 @@
         document.getElementById('ocrProgressContainer').style.display = 'none';
     }
 
-    async function fetchData() {
-        showLoading('正在從雲端讀取資料...');
-        try {
-            // Use POST for reading too, to bypass some strict GET CORS checks in certain environments
-            // Passing action in URL as backup, and in body for main logic
-            const response = await fetch(`${API_URL}?action=read&t=${Date.now()}`, { 
-                method: 'GET', 
-                credentials: 'omit'
+    // GViz JSON 解析器
+    function parseGvizData(jsonData) {
+        const rows = jsonData.table.rows;
+        const parsed = [];
+        
+        rows.forEach(row => {
+            if (!row || !row.c || !row.c[0] || !row.c[0].v) return;
+            
+            const cols = row.c.map(col => {
+                if (!col) return "";
+                if (typeof col.v === 'number') return col.v;
+                if (col.f !== undefined && col.f !== null) return col.f;
+                return col.v !== null ? col.v : "";
             });
             
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+            // 跳過標題列
+            if (cols[0] === "日期" || cols[1] === "類型") return;
+            
+            let dateVal = cols[0];
+            if (dateVal && typeof dateVal === 'string' && dateVal.startsWith("Date(")) {
+               const match = dateVal.match(/Date\((\d+),\s*(\d+),\s*(\d+)/);
+               if (match) {
+                   const y = match[1];
+                   const m = String(parseInt(match[2]) + 1).padStart(2, '0');
+                   const d = String(match[3]).padStart(2, '0');
+                   dateVal = `${y}-${m}-${d}`;
+               }
+            } else if (typeof dateVal === 'string') {
+               dateVal = dateVal.replace(/\//g, '-');
             }
-            
-            const data = await response.json();
-            transactions = data.sort((a, b) => new Date(b.date) - new Date(a.date));
-            renderTable();
-            initStatsSelectors();
-            updateListFilterOptions();
-            hideLoading();
-        } catch (e) {
-            console.error("Fetch Error:", e);
-            hideLoading(); 
-            
-            if(confirm('❌ 連線失敗：無法讀取資料。\n\n請確認：\n1. Apps Script 是否部署為「任何人 (Anyone)」\n2. 網址是否正確 (以 /exec 結尾)\n\n點擊「確定」重新檢查設定。')) {
-                openSettings();
+
+            parsed.push({
+                date: dateVal,
+                type: cols[1] || "",
+                category: cols[2] || "",
+                description: cols[3] || "",
+                amount: parseInt(cols[4] || 0),
+                method: cols[5] || "",
+                note: cols[6] || "",
+                id: cols[7] || ""
+            });
+        });
+        return parsed;
+    }
+
+    async function fetchData() {
+        showLoading('正在從雲端讀取資料...');
+        let data = [];
+        let useFallback = false;
+
+        // 1. 優先嘗試 GViz (極速讀取)
+        const sheetIdMatch = SHEET_URL ? SHEET_URL.match(/\/d\/([a-zA-Z0-9-_]+)/) : null;
+        if (sheetIdMatch) {
+            try {
+                const sheetId = sheetIdMatch[1];
+                const gvizUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json`;
+                const response = await fetch(gvizUrl);
+                if (!response.ok) throw new Error("GViz API failed");
+                const text = await response.text();
+                // 移除外層包裹的 google.visualization.Query.setResponse()
+                const jsonStr = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
+                const jsonData = JSON.parse(jsonStr);
+                data = parseGvizData(jsonData);
+            } catch (err) {
+                console.warn("極速讀取失敗，改用 Apps Script 備用方案讀取", err);
+                useFallback = true;
+            }
+        } else {
+            useFallback = true; // 沒設定 Sheet 網址，走舊路線
+        }
+
+        // 2. 備用方案：Apps Script 讀取
+        if (useFallback) {
+            try {
+                const response = await fetch(API_URL, { 
+                    method: 'POST',
+                    mode: 'cors',
+                    credentials: 'omit',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action: 'read' })
+                });
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                data = await response.json();
+            } catch (err) {
+                console.error("Fetch Error:", err);
+                hideLoading(); 
+                if(confirm('❌ 連線失敗：無法讀取資料。\n\n請確認：\n1. Apps Script 是否部署為「任何人 (Anyone)」\n2. 網址是否正確 (以 /exec 結尾)\n\n點擊「確定」重新檢查設定。')) {
+                    openSettings();
+                }
+                return;
             }
         }
+
+        // 資料整理與渲染
+        transactions = data.sort((a, b) => new Date(b.date) - new Date(a.date));
+        renderTable();
+        initStatsSelectors();
+        updateListFilterOptions();
+        hideLoading();
     }
 
     // --- Add / Edit Logic ---
@@ -615,6 +690,7 @@
     window.openSettings = function() { 
         document.getElementById('settingsModal').style.display = 'block'; 
         document.getElementById('apiUrlInput').value = API_URL; 
+        document.getElementById('sheetUrlInput').value = SHEET_URL; 
     }
     window.closeSettings = function() { document.getElementById('settingsModal').style.display = 'none'; }
     
@@ -622,26 +698,14 @@
     function getCleanUrl() {
         let url = document.getElementById('apiUrlInput').value.trim();
         if (!url) return null;
-        
-        if (url.includes('/edit')) {
-            url = url.split('/edit')[0] + '/exec';
-        } else if (url.includes('/dev')) {
-            alert('⚠️ 警告：您使用的是測試版網址 (/dev)，這通常只有建立者自己能用。\n請使用正式版 (/exec)。');
-        }
-        
-        if (!url.endsWith('/exec')) {
-            // 嘗試自動修復或警告
-            if (url.includes('/exec')) {
-                // 可能後面帶了參數
-                url = url.substring(0, url.indexOf('/exec') + 5);
-            }
-        }
+        if (url.includes('/edit')) url = url.split('/edit')[0] + '/exec';
+        else if (url.includes('/dev')) alert('⚠️ 警告：您使用的是測試版網址 (/dev)。請使用正式版 (/exec)。');
         return url;
     }
 
     window.testConnection = async function() {
         const url = getCleanUrl();
-        if (!url) { alert('請輸入網址'); return; }
+        if (!url) { alert('請輸入 Apps Script 網址'); return; }
         
         const btn = document.querySelector('.btn-test');
         const originalText = btn.innerText;
@@ -649,10 +713,13 @@
         btn.disabled = true;
 
         try {
-            // Use POST for test too
-            const response = await fetch(`${url}?action=read&t=${Date.now()}`, { 
-                method: 'GET', 
-                credentials: 'omit'
+            // 測試連線一律使用 POST 確保 Apps Script 是通的
+            const response = await fetch(url, { 
+                method: 'POST',
+                mode: 'cors',
+                credentials: 'omit',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action: 'read' })
             });
             if (response.ok) {
                 const data = await response.json();
@@ -670,19 +737,26 @@
 
     window.saveSettings = function() {
         const url = getCleanUrl();
+        const sheetUrl = document.getElementById('sheetUrlInput').value.trim();
+
         if (url) {
-            // 基本格式檢查
-            if (!url.includes('script.google.com')) {
-                alert('這似乎不是 Google Apps Script 的網址喔！');
-                return;
-            }
+            if (!url.includes('script.google.com')) { alert('這似乎不是 Google Apps Script 的網址喔！'); return; }
 
             API_URL = url;
             localStorage.setItem('myCuteAccountBook_API', API_URL);
+
+            if (sheetUrl) {
+                SHEET_URL = sheetUrl;
+                localStorage.setItem('myCuteAccountBook_SheetUrl', SHEET_URL);
+            } else {
+                SHEET_URL = '';
+                localStorage.removeItem('myCuteAccountBook_SheetUrl');
+            }
+
             closeSettings();
             fetchData();
         } else {
-            alert('請輸入網址');
+            alert('請輸入 Apps Script 網址');
         }
     }
 
